@@ -1,3 +1,23 @@
 <resources>
     <string name="app_name">Taxifit</string>
+
+    <string name="nav_en_ruta">En ruta</string>
+    <string name="nav_historial">Historial</string>
+    <string name="nav_panel">Panel</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="nav_diagnostics">Diagnóstico</string>
+    <string name="nav_support">Soporte</string>
+    <string name="nav_config_title">Configuración</string>
+
+    <string name="title_monitor">Monitor</string>
+    <string name="subtitle_monitor">Nodo central de flujo de datos.</string>
+    <string name="title_logs">Logs</string>
+    <string name="subtitle_logs">Listado de registros históricos.</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="subtitle_dashboard">Panel de administración.</string>
+
+    <string name="action_open_menu">Abrir menú</string>
+    <string name="action_manual_entry">Entrada manual</string>
+    <string name="action_back">Volver</string>
+    <string name="action_view_detail">Ver detalle</string>
 </resources>

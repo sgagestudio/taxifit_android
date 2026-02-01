@@ -5,32 +5,36 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mm.taxifit.auth.AuthState
 import com.mm.taxifit.auth.AuthViewModel
 import com.mm.taxifit.auth.SupabaseProvider
 import com.mm.taxifit.ui.theme.TaxifitTheme
@@ -43,18 +47,34 @@ class MainActivity : ComponentActivity() {
         setContent {
             TaxifitTheme {
                 val authViewModel: AuthViewModel = viewModel()
-                val state by authViewModel.uiState.collectAsState()
-                val isGoogleConfigured = BuildConfig.TAXIFIT_GOOGLE_WEB_CLIENT_ID.isNotBlank()
-                val context = LocalContext.current
+                val state by authViewModel.state.collectAsState()
 
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    when {
-                        state.isLoading -> LoadingScreen()
-                        state.isAuthenticated -> HomeScreen(onSignOut = authViewModel::signOut)
-                        else -> LoginScreen(
-                            errorMessage = state.errorMessage,
-                            isGoogleConfigured = isGoogleConfigured,
-                            onGoogleSignIn = { authViewModel.signInWithGoogle(context) }
+                    when (val current = state) {
+                        AuthState.Loading -> SplashScreen()
+                        is AuthState.LoggedIn -> HomeScreen(
+                            email = current.email,
+                            onSignOut = authViewModel::signOut
+                        )
+                        is AuthState.NeedsEmailVerification -> VerifyEmailScreen(
+                            email = current.email,
+                            onResend = authViewModel::resendVerification,
+                            onBackToLogin = authViewModel::backToLogin
+                        )
+                        is AuthState.LoggedOut -> AuthScreen(
+                            errorMessage = null,
+                            canResend = false,
+                            onSignIn = authViewModel::signIn,
+                            onSignUp = authViewModel::signUp,
+                            onResend = authViewModel::resendVerification
+                        )
+                        is AuthState.Error -> AuthScreen(
+                            errorMessage = current.message,
+                            canResend = current.canResend,
+                            onSignIn = authViewModel::signIn,
+                            onSignUp = authViewModel::signUp,
+                            onResend = authViewModel::resendVerification,
+                            presetEmail = current.email
                         )
                     }
                 }
@@ -69,7 +89,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun LoadingScreen() {
+private fun SplashScreen() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -79,10 +99,80 @@ private fun LoadingScreen() {
 }
 
 @Composable
-private fun LoginScreen(
+private fun AuthScreen(
     errorMessage: String?,
-    isGoogleConfigured: Boolean,
-    onGoogleSignIn: () -> Unit
+    canResend: Boolean,
+    onSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit,
+    onResend: (String) -> Unit,
+    presetEmail: String? = null
+) {
+    var isSignUp by remember { mutableStateOf(false) }
+    var email by rememberSaveable { mutableStateOf(presetEmail ?: "") }
+    var password by rememberSaveable { mutableStateOf("") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isSignUp) "Crear cuenta" else "Iniciar sesion",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { isSignUp = false }) {
+                    Text("Login")
+                }
+                OutlinedButton(onClick = { isSignUp = true }) {
+                    Text("Registro")
+                }
+            }
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation()
+            )
+
+            if (errorMessage != null) {
+                Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+            }
+
+            Button(onClick = {
+                if (isSignUp) onSignUp(email, password) else onSignIn(email, password)
+            }) {
+                Text(if (isSignUp) "Crear cuenta" else "Entrar")
+            }
+
+            if (canResend && email.isNotBlank()) {
+                TextButton(onClick = { onResend(email) }) {
+                    Text("Reenviar verificacion")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerifyEmailScreen(
+    email: String,
+    onResend: (String) -> Unit,
+    onBackToLogin: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -95,48 +185,34 @@ private fun LoginScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Taxifit",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.SemiBold
+                text = "Verifica tu email",
+                style = MaterialTheme.typography.headlineMedium
             )
             Text(
-                text = "Accede con tu cuenta",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Te enviamos un email a $email para verificar tu cuenta.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "Abre el enlace para activar tu cuenta.",
+                style = MaterialTheme.typography.bodyMedium
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (!isGoogleConfigured) {
-                Text(
-                    text = "Configura TAXIFIT_GOOGLE_WEB_CLIENT_ID en gradle.properties",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = { onResend(email) }) {
+                Text("Reenviar verificacion")
             }
-
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-
-            OutlinedButton(
-                onClick = onGoogleSignIn,
-                enabled = isGoogleConfigured,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-            ) {
-                Text(text = "Continuar con Google")
+            TextButton(onClick = onBackToLogin) {
+                Text("Volver a login")
             }
         }
     }
 }
 
 @Composable
-private fun HomeScreen(onSignOut: () -> Unit) {
+private fun HomeScreen(
+    email: String?,
+    onSignOut: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -148,17 +224,15 @@ private fun HomeScreen(onSignOut: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Bienvenido a Taxifit",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Medium
+                text = "Bienvenido a TaxiFit",
+                style = MaterialTheme.typography.headlineMedium
             )
             Text(
-                text = "Sesion activa",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = email ?: "Sesion activa",
+                style = MaterialTheme.typography.bodyMedium
             )
             Button(onClick = onSignOut) {
-                Text(text = "Cerrar sesion")
+                Text("Cerrar sesion")
             }
         }
     }
@@ -166,20 +240,14 @@ private fun HomeScreen(onSignOut: () -> Unit) {
 
 @Preview(showBackground = true)
 @Composable
-private fun LoginPreview() {
+private fun AuthPreview() {
     TaxifitTheme {
-        LoginScreen(
+        AuthScreen(
             errorMessage = null,
-            isGoogleConfigured = true,
-            onGoogleSignIn = {}
+            canResend = false,
+            onSignIn = { _, _ -> },
+            onSignUp = { _, _ -> },
+            onResend = {}
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun HomePreview() {
-    TaxifitTheme {
-        HomeScreen(onSignOut = {})
     }
 }

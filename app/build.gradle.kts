@@ -10,11 +10,8 @@ val supabaseUrl: String = System.getenv("TAXIFIT_SUPABASE_URL")
 val supabaseAnonKey: String = System.getenv("TAXIFIT_SUPABASE_ANON_KEY")
     ?: project.findProperty("TAXIFIT_SUPABASE_ANON_KEY")?.toString() ?: ""
 
-val googleWebClientId: String = System.getenv("TAXIFIT_GOOGLE_WEB_CLIENT_ID")
-    ?: project.findProperty("TAXIFIT_GOOGLE_WEB_CLIENT_ID")?.toString() ?: ""
-
 // Imprime en la consola de Gradle para que verifiques que se están leyendo
-println("Taxifit Config Check -> URL: ${supabaseUrl.isNotEmpty()}, Key: ${supabaseAnonKey.isNotEmpty()}, GoogleID: ${googleWebClientId.isNotEmpty()}")
+println("Taxifit Config Check -> URL: ${supabaseUrl.isNotEmpty()}, Key: ${supabaseAnonKey.isNotEmpty()}")
 
 android {
     namespace = "com.mm.taxifit"
@@ -32,7 +29,6 @@ android {
         // Inyección de variables en el código Java/Kotlin
         buildConfigField("String", "TAXIFIT_SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "TAXIFIT_SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-        buildConfigField("String", "TAXIFIT_GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
 
     buildTypes {
@@ -47,7 +43,6 @@ android {
             // Aseguramos que el BuildConfig esté disponible en debug
             buildConfigField("String", "TAXIFIT_SUPABASE_URL", "\"$supabaseUrl\"")
             buildConfigField("String", "TAXIFIT_SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-            buildConfigField("String", "TAXIFIT_GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         }
     }
 
@@ -76,14 +71,11 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play.services.auth)
-    implementation(libs.googleid)
-
     // Supabase & Ktor
     implementation(platform(libs.supabase.bom))
     implementation(libs.supabase.auth)
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.androidx.security.crypto)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

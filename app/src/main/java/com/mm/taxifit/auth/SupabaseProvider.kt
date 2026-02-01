@@ -17,7 +17,10 @@ object SupabaseProvider {
             install(Auth) {
                 flowType = FlowType.PKCE
                 scheme = "taxifit"
-                host = "login-callback"
+                host = "auth-callback"
+                alwaysAutoRefresh = true
+                autoLoadFromStorage = false
+                autoSaveToStorage = false
             }
         }
     }

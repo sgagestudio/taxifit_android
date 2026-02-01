@@ -28,7 +28,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="login-callback"
+                    android:host="auth-callback"
                     android:scheme="taxifit" />
             </intent-filter>
         </activity>

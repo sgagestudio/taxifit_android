@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -110,6 +109,8 @@ private fun AuthScreen(
     var isSignUp by remember { mutableStateOf(false) }
     var email by rememberSaveable { mutableStateOf(presetEmail ?: "") }
     var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -122,46 +123,92 @@ private fun AuthScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = if (isSignUp) "Crear cuenta" else "Iniciar sesion",
+                text = if (isSignUp) "Registro" else "Login",
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { isSignUp = false }) {
-                    Text("Login")
-                }
-                OutlinedButton(onClick = { isSignUp = true }) {
-                    Text("Registro")
-                }
-            }
-
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    localError = null
+                },
                 label = { Text("Email") },
                 singleLine = true
             )
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    localError = null
+                },
                 label = { Text("Password") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation()
             )
+            if (isSignUp) {
+                val passwordMismatch = confirmPassword.isNotEmpty() && confirmPassword != password
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = {
+                        confirmPassword = it
+                        localError = null
+                    },
+                    label = { Text("Confirmar password") },
+                    singleLine = true,
+                    isError = passwordMismatch,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+            }
 
             if (errorMessage != null) {
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
             }
+            if (localError != null) {
+                Text(text = localError ?: "", color = MaterialTheme.colorScheme.error)
+            }
 
             Button(onClick = {
-                if (isSignUp) onSignUp(email, password) else onSignIn(email, password)
+                if (isSignUp) {
+                    if (password != confirmPassword) {
+                        localError = "Las contrasenas no coinciden"
+                        return@Button
+                    }
+                    onSignUp(email, password)
+                } else {
+                    onSignIn(email, password)
+                }
             }) {
-                Text(if (isSignUp) "Crear cuenta" else "Entrar")
+                Text("Conectar")
             }
 
             if (canResend && email.isNotBlank()) {
                 TextButton(onClick = { onResend(email) }) {
                     Text("Reenviar verificacion")
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (isSignUp) {
+                    Text("Ya tienes una cuenta?")
+                    TextButton(onClick = {
+                        isSignUp = false
+                        confirmPassword = ""
+                        localError = null
+                    }) {
+                        Text("Inicia sesion aqui", color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    Text("Aun no tienes cuenta?")
+                    TextButton(onClick = {
+                        isSignUp = true
+                        localError = null
+                    }) {
+                        Text("Registrate aqui", color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }

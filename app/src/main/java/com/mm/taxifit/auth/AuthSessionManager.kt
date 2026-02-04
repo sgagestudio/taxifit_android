@@ -14,10 +14,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.mm.taxifit.data.local.LocalUserStorage
 
 class AuthSessionManager(
     private val supabase: SupabaseClient,
     private val storage: SecureSessionStorage,
+    private val localUserStorage: LocalUserStorage,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow<AuthState>(AuthState.Loading)
@@ -86,7 +88,10 @@ class AuthSessionManager(
                 supabase.auth.signOut()
             } catch (_: Exception) {
             } finally {
-                withContext(Dispatchers.IO) { storage.clear() }
+                withContext(Dispatchers.IO) {
+                    storage.clear()
+                    localUserStorage.clear()
+                }
                 pendingVerificationEmail = null
                 _state.update { AuthState.LoggedOut }
             }
@@ -109,7 +114,10 @@ class AuthSessionManager(
             try {
                 supabase.auth.importSession(session, autoRefresh = true)
             } catch (_: Exception) {
-                withContext(Dispatchers.IO) { storage.clear() }
+                withContext(Dispatchers.IO) {
+                    storage.clear()
+                    localUserStorage.clear()
+                }
                 _state.update { AuthState.LoggedOut }
             }
         }
@@ -125,6 +133,7 @@ class AuthSessionManager(
                     is SessionStatus.Authenticated -> {
                         pendingVerificationEmail = null
                         saveSession(status.session)
+                        saveLocalUser(status.session)
                         _state.update { AuthState.LoggedIn(status.session.user?.email) }
                     }
                     is SessionStatus.NotAuthenticated -> {
@@ -136,7 +145,10 @@ class AuthSessionManager(
                         }
                     }
                     is SessionStatus.RefreshFailure -> {
-                        withContext(Dispatchers.IO) { storage.clear() }
+                        withContext(Dispatchers.IO) {
+                            storage.clear()
+                            localUserStorage.clear()
+                        }
                         _state.update { AuthState.Error("Sesion expirada. Inicia sesion de nuevo.") }
                     }
                 }
@@ -147,6 +159,14 @@ class AuthSessionManager(
     private suspend fun saveSession(session: UserSession) {
         withContext(Dispatchers.IO) {
             storage.save(session)
+        }
+    }
+
+    private suspend fun saveLocalUser(session: UserSession) {
+        val user = session.user ?: return
+        val email = user.email ?: return
+        withContext(Dispatchers.IO) {
+            localUserStorage.save(id = user.id, email = email)
         }
     }
 

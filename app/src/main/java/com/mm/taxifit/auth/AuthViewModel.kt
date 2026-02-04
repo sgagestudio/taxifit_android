@@ -3,6 +3,7 @@ package com.mm.taxifit.auth
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.mm.taxifit.data.local.LocalUserStorage
 import kotlinx.coroutines.flow.StateFlow
 
 sealed class AuthState {
@@ -17,6 +18,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionManager = AuthSessionManager(
         supabase = SupabaseProvider.client,
         storage = SecureSessionStorage(application),
+        localUserStorage = LocalUserStorage(application),
         scope = viewModelScope
     )
 

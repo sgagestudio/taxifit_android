@@ -9,6 +9,10 @@ class LocalUserStorage(context: Context) {
         dao.upsert(LocalUserEntity(id = id, email = email))
     }
 
+    suspend fun load(): LocalUserEntity? {
+        return dao.get()
+    }
+
     suspend fun clear() {
         dao.clear()
     }

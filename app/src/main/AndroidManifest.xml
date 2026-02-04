@@ -12,6 +12,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Taxifit">
         <activity
+            android:name=".OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Taxifit" />
+        <activity
+            android:name=".HomeDriverActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Taxifit" />
+        <activity
+            android:name=".HomeOwnerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Taxifit" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"

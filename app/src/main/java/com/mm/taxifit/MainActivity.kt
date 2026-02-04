@@ -21,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -36,7 +38,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mm.taxifit.auth.AuthState
 import com.mm.taxifit.auth.AuthViewModel
 import com.mm.taxifit.auth.SupabaseProvider
+import com.mm.taxifit.data.local.UserPreferences
+import com.mm.taxifit.domain.model.Role
 import com.mm.taxifit.ui.theme.TaxifitTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,10 +57,42 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     when (val current = state) {
                         AuthState.Loading -> SplashScreen()
-                        is AuthState.LoggedIn -> HomeScreen(
-                            email = current.email,
-                            onSignOut = authViewModel::signOut
-                        )
+                        is AuthState.NeedsOnboarding -> {
+                            val context = LocalContext.current
+                            LaunchedEffect(current) {
+                                context.startActivity(Intent(context, OnboardingActivity::class.java))
+                                (context as? ComponentActivity)?.finish()
+                            }
+                            SplashScreen()
+                        }
+                        is AuthState.LoggedIn -> {
+                            val context = LocalContext.current
+                            var roleChecked by remember { mutableStateOf(false) }
+                            var resolvedRole by remember { mutableStateOf<Role?>(null) }
+                            LaunchedEffect(current) {
+                                val preferences = UserPreferences(context)
+                                resolvedRole = withContext(Dispatchers.IO) { preferences.loadLastRole() }
+                                roleChecked = true
+                                val destination = when (resolvedRole) {
+                                    Role.DUENO -> HomeOwnerActivity::class.java
+                                    Role.CONDUCTOR, Role.DUENO_CONDUCTOR -> HomeDriverActivity::class.java
+                                    null -> null
+                                }
+                                if (destination != null) {
+                                    context.startActivity(Intent(context, destination))
+                                    (context as? ComponentActivity)?.finish()
+                                }
+                            }
+
+                            if (!roleChecked || resolvedRole != null) {
+                                SplashScreen()
+                            } else {
+                                HomeScreen(
+                                    email = current.email,
+                                    onSignOut = authViewModel::signOut
+                                )
+                            }
+                        }
                         is AuthState.NeedsEmailVerification -> VerifyEmailScreen(
                             email = current.email,
                             onResend = authViewModel::resendVerification,

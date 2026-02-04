@@ -7,6 +7,7 @@ import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.FlowType
 import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
 
 object SupabaseProvider {
     val client: SupabaseClient by lazy {
@@ -22,6 +23,7 @@ object SupabaseProvider {
                 autoLoadFromStorage = false
                 autoSaveToStorage = false
             }
+            install(Postgrest)
         }
     }
 

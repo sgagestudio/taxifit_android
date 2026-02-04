@@ -6,6 +6,7 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserSession
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.mm.taxifit.data.local.LocalUserStorage
+import com.mm.taxifit.data.remote.RemoteUserRow
 
 class AuthSessionManager(
     private val supabase: SupabaseClient,
@@ -134,7 +136,12 @@ class AuthSessionManager(
                         pendingVerificationEmail = null
                         saveSession(status.session)
                         saveLocalUser(status.session)
-                        _state.update { AuthState.LoggedIn(status.session.user?.email) }
+                        val requiresOnboarding = needsOnboarding(status.session)
+                        if (requiresOnboarding) {
+                            _state.update { AuthState.NeedsOnboarding(status.session.user?.email) }
+                        } else {
+                            _state.update { AuthState.LoggedIn(status.session.user?.email) }
+                        }
                     }
                     is SessionStatus.NotAuthenticated -> {
                         val pending = pendingVerificationEmail
@@ -167,6 +174,24 @@ class AuthSessionManager(
         val email = user.email ?: return
         withContext(Dispatchers.IO) {
             localUserStorage.save(id = user.id, email = email)
+        }
+    }
+
+    private suspend fun needsOnboarding(session: UserSession): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val localUser = localUserStorage.load() ?: return@withContext false
+                val userId = localUser.id
+                val rows = supabase.from("users")
+                    .select {
+                        filter { eq("id", userId) }
+                        limit(1)
+                    }
+                    .decodeList<RemoteUserRow>()
+                rows.isEmpty()
+            } catch (_: Exception) {
+                false
+            }
         }
     }
 

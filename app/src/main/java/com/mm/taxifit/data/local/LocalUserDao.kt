@@ -10,6 +10,9 @@ interface LocalUserDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(user: LocalUserEntity)
 
+    @Query("SELECT * FROM local_user LIMIT 1")
+    suspend fun get(): LocalUserEntity?
+
     @Query("DELETE FROM local_user")
     suspend fun clear()
 }

@@ -10,6 +10,7 @@ sealed class AuthState {
     data object Loading : AuthState()
     data object LoggedOut : AuthState()
     data class NeedsEmailVerification(val email: String) : AuthState()
+    data class NeedsOnboarding(val email: String?) : AuthState()
     data class LoggedIn(val email: String?) : AuthState()
     data class Error(val message: String, val email: String? = null, val canResend: Boolean = false) : AuthState()
 }

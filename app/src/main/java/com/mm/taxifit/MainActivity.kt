@@ -38,9 +38,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mm.taxifit.auth.AuthState
 import com.mm.taxifit.auth.AuthViewModel
 import com.mm.taxifit.auth.SupabaseProvider
+import com.mm.taxifit.data.local.LocalUserStorage
 import com.mm.taxifit.data.local.UserPreferences
+import com.mm.taxifit.data.remote.RemoteUserProfileRow
 import com.mm.taxifit.domain.model.Role
 import com.mm.taxifit.ui.theme.TaxifitTheme
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -71,7 +74,21 @@ class MainActivity : ComponentActivity() {
                             var resolvedRole by remember { mutableStateOf<Role?>(null) }
                             LaunchedEffect(current) {
                                 val preferences = UserPreferences(context)
-                                resolvedRole = withContext(Dispatchers.IO) { preferences.loadLastRole() }
+                                resolvedRole = withContext(Dispatchers.IO) {
+                                    val localRole = preferences.loadLastRole()
+                                    if (localRole != null) {
+                                        localRole
+                                    } else {
+                                        val remoteRole = loadRoleFromRemote(context) ?: return@withContext null
+                                        val fallbackRole = if (remoteRole == Role.DUENO_CONDUCTOR) {
+                                            Role.CONDUCTOR
+                                        } else {
+                                            remoteRole
+                                        }
+                                        preferences.saveLastRole(fallbackRole)
+                                        fallbackRole
+                                    }
+                                }
                                 roleChecked = true
                                 val destination = when (resolvedRole) {
                                     Role.DUENO -> HomeOwnerActivity::class.java
@@ -122,6 +139,23 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         SupabaseProvider.handleDeepLink(intent)
+    }
+
+    private suspend fun loadRoleFromRemote(context: android.content.Context): Role? {
+        return try {
+            val localUser = LocalUserStorage(context.applicationContext).load() ?: return null
+            val rows = SupabaseProvider.client
+                .postgrest["users"]
+                .select {
+                    filter { eq("id", localUser.id) }
+                    limit(1)
+                }
+                .decodeList<RemoteUserProfileRow>()
+            val rawRole = rows.firstOrNull()?.role
+            Role.fromDb(rawRole)
+        } catch (_: Exception) {
+            null
+        }
     }
 }
 

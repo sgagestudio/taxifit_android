@@ -22,4 +22,10 @@ class UserPreferences(private val context: Context) {
         val value = context.dataStore.data.first()[lastRoleKey]
         return Role.fromDb(value)
     }
+
+    suspend fun clearLastRole() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(lastRoleKey)
+        }
+    }
 }

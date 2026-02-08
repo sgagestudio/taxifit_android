@@ -6,7 +6,7 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserSession
-import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -182,7 +182,7 @@ class AuthSessionManager(
             try {
                 val localUser = localUserStorage.load() ?: return@withContext false
                 val userId = localUser.id
-                val rows = supabase.from("users")
+                val rows = supabase.postgrest["users"]
                     .select {
                         filter { eq("id", userId) }
                         limit(1)

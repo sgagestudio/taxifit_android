@@ -41,7 +41,7 @@ import com.mm.taxifit.data.remote.RemoteOwnerInsert
 import com.mm.taxifit.data.remote.RemoteUserInsert
 import com.mm.taxifit.domain.model.Role
 import com.mm.taxifit.ui.theme.TaxifitTheme
-import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -198,19 +198,22 @@ private fun OnboardingScreen(
                                     fullname = fullName,
                                     phone = phone
                                 )
-                                supabase.from("users").insert(userInsert)
+                                supabase.postgrest["users"].insert(userInsert)
 
                                 if (role == Role.DUENO || role == Role.DUENO_CONDUCTOR) {
                                     val ownerInsert = RemoteOwnerInsert(
                                         userId = user.id,
                                         workLicense = licenseNumber
                                     )
-                                    supabase.from("owners").insert(ownerInsert)
+                                    supabase.postgrest["owners"].insert(ownerInsert)
                                 }
 
                                 if (role == Role.CONDUCTOR || role == Role.DUENO_CONDUCTOR) {
-                                    val driverInsert = RemoteDriverInsert(userId = user.id)
-                                    supabase.from("drivers").insert(driverInsert)
+                                    val driverInsert = RemoteDriverInsert(
+                                        userId = user.id,
+                                        ownerId = if (role == Role.DUENO_CONDUCTOR) user.id else null
+                                    )
+                                    supabase.postgrest["drivers"].insert(driverInsert)
                                 }
 
                                 val lastRole = if (role == Role.DUENO) Role.DUENO else Role.CONDUCTOR
